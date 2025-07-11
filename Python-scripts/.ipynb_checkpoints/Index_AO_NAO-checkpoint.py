@@ -44,10 +44,10 @@ ds_clim = ds.groupby('time.month').mean('time')
 ds_anom = ds.groupby('time.month') - ds_clim
 ds_anom = ds_anom.compute()
 
-ds_anom = ds_anom - ds_anom.mean('time') 
+# ds_anom = ds_anom - ds_anom.mean('time') 
 
 # Compute AO index using EOFs over the Northen hemisphere
-psl_anom = ds_anom['slp'].sel(lat=slice(20.,90.))#.fillna(0) # latitude range 20N-90N
+psl_anom = ds_anom['slp'].where((ds_anom['lat'] >= 60.) & (ds_anom['lat'] <= 90.)) # latitude range 20N-90N
 
 model_eof = xe.single.EOF(n_modes=10, use_coslat=True, compute=False)
 model_eof.fit(psl_anom, dim='time')
@@ -68,7 +68,7 @@ del ds_save['ao_eofs'].attrs['solver_kwargs']
 del ds_save['ao_pcs'].attrs['solver_kwargs']
 
 # Compute NAO index using EOFs over the North Atlantic
-psl_anom = ds_anom['slp'].sel(lat=slice(20., 80.))#.fillna(0) # latitude range 20N-80N
+psl_anom = ds_anom['slp'].where((ds_anom['lat'] >= 20.) & (ds_anom['lat'] <= 80.)) # latitude range 20N-80N
 psl_anom = psl_anom.where((psl_anom['lon'] <= 40.) | (psl_anom['lon'] >= 270.)) #longitude range 90W-40E
 
 model_eof = xe.single.EOF(n_modes=10, use_coslat=True, compute=False)
