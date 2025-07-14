@@ -33,9 +33,10 @@ def detrend(da, dims, deg=1):
 
 # ------ Main code -----------------
 
-ppdir = "/mnt/storage6/hemant/Memory-ANHA4-EPM111/"
+#ppdir = "/mnt/storage6/hemant/Memory-ANHA4-EPM111/"
+ppdir = "/gws/nopw/j04/snapdragon/hkhatri/HighResMIP/NEMO_UAlberta/Memory-ANHA4-EPM111/"
 
-year_int = 30. # length of response function in years
+year_int = 20. # length of response function in years
 
 gamma_rng = np.arange(0.5, 20.1, 0.5)
 beta_rng = np.arange(0.0, 10.1, 0.5)
