@@ -45,7 +45,7 @@ ppdir_save = "/mnt/storage6/hemant/Memory-ANHA4-EPM111/timeseries/"
 # read grid data
 ds_grid = xr.open_dataset(ppdir_grid + "mesh_mask_anha4.nc")
 
-for year in range(1959, 2022):
+for year in range(1958, 2022):
 
     print("Running year = ", year)
 
@@ -89,10 +89,10 @@ for year in range(1959, 2022):
     #ds_save['vol_subtropical_NAtl'] = dV.sum(['x', 'y'])
 
     # North Atlantic
-    #dV = cell_vol.where((ds['nav_lat']>=0.) & (ds['nav_lat']<=70.))
-    #ds_save[var + '_NAtl'] = area_sum(ds['votemper'], dA = dV, x='x', y='y')
-    #ds_save[var + '_NAtl'].attrs['long_name'] = "North Atlantic (0N-70N): volume-integrated"
-    #ds_save['vol_NAtl'] = dV.sum(['x', 'y'])
+    dV = cell_vol.where((ds['nav_lat']>=45.))
+    ds_save[var + '_NAtl'] = area_sum(ds['votemper'], dA = dV, x='x', y='y')
+    ds_save[var + '_NAtl'].attrs['long_name'] = "North Atlantic (45N-90N): volume-integrated"
+    ds_save['vol_NAtl'] = dV.sum(['x', 'y'])
     
     ## ----- Sea ice and heat flux calculations (domain integration) ---------
     cell_area = ds['e2t'] * ds['e1t']
@@ -119,9 +119,9 @@ for year in range(1959, 2022):
             #ds_save[var + '_subtropical_NAtl'].attrs['long_name'] = "Subtropical North Atlantic (0N-45N): area-integrated"
         
             # North Atlantic
-            #dA = cell_area.where((ds['nav_lat']>=0.) & (ds['nav_lat']<=70.))
-            #ds_save[var + '_NAtl'] = area_sum(ds[var], dA = dA, x='x', y='y')
-            #ds_save[var + '_NAtl'].attrs['long_name'] = "North Atlantic (0N-70N): area-integrated"
+            dA = cell_area.where((ds['nav_lat']>=45.))
+            ds_save[var + '_NAtl'] = area_sum(ds[var], dA = dA, x='x', y='y')
+            ds_save[var + '_NAtl'].attrs['long_name'] = "North Atlantic (45N-90N): area-integrated"
         
         else:
             ds_save[var] = area_sum(ds[var], dA = cell_area, x='x', y='y')
@@ -141,6 +141,7 @@ for year in range(1959, 2022):
     ds_save.to_netcdf(save_file_path)
     
     print("Data saved succefully")
+    print(" ")
 
 
 
