@@ -44,7 +44,7 @@ ds_clim = ds.groupby('time.month').mean('time')
 ds_anom = ds.groupby('time.month') - ds_clim
 ds_anom = ds_anom.compute()
 
-# ds_anom = ds_anom - ds_anom.mean('time') 
+#ds_anom = ds_anom - ds_anom.mean('time') 
 
 # Compute AO index using EOFs over the Northen hemisphere
 psl_anom = ds_anom['slp'].where((ds_anom['lat'] >= 60.) & (ds_anom['lat'] <= 90.)) # latitude range 20N-90N

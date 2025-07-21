@@ -32,7 +32,6 @@ def detrend(da, dims, deg=1):
 
 # ------ Main code -----------------
 
-#ppdir = "/mnt/storage6/hemant/Memory-ANHA4-EPM111/"
 ppdir = "/gws/nopw/j04/snapdragon/hkhatri/HighResMIP/NEMO_UAlberta/Memory-ANHA4-EPM111/"
 
 year_int = 20. # length of response function in years
@@ -40,30 +39,21 @@ year_int = 20. # length of response function in years
 gamma_rng = np.arange(0.5, 20.1, 0.5)
 beta_rng = np.arange(0.0, 10.1, 0.5)
 
-# read grid data
+# read data
+ds = xr.open_dataset(ppdir + "timeseries/Index_AO_NAO.nc")
 
-ds = xr.open_mfdataset(ppdir + "timeseries/Ocean_temp*nc", chunks=None)
-ds = ds.drop(['cell_area', 'nav_lat', 'nav_lon', 'vol_arctic', 'vol_subpolar_NAtl', 'vol_NAtl'])
-ds = ds.sel(z=slice(0.,500.)).sum('z').compute() # focus on upper 500 m
-
-# remove climatology and linear trends 
-var_list = ['votemper_subpolar_NAtl', 'votemper_arctic', 'votemper_NAtl',
-            'ice_vol', 'ileadfra', 'sohefldo_subpolar_NAtl', 'sohefldo_arctic',
-            'sohefldo_NAtl']
-
-ds_clim = ds.groupby('time.month').mean('time')
-ds = ds.groupby('time.month') - ds_clim
-
+# remove climatology and linear trends
+var_list = ['ao_pcs', 'nao_pcs']
 for var in var_list:
+    ds_clim = ds[var].groupby('time.month').mean('time')
+    ds[var] = ds[var].groupby('time.month') - ds_clim
     ds[var] = detrend(ds[var], ['time'])
+ds = ds.drop('month')
 
-print("Data read and linear trends removal completed")
-      
 # Create impulse response functions 
-
-tim = (ds['time'].dt.year + ds['time'].dt.month / 12 + ds['time'].dt.day / 365. 
+tim = (ds['time'].dt.year + ds['time'].dt.month / 12 
     - ds['time.year'].values[0] - 10.) # temporary timeseries
-fac = int(365./5.) 
+fac = 12 # for monthly data
 
 Response_function_full = []
 for gamma in gamma_rng:
@@ -80,7 +70,8 @@ for gamma in gamma_rng:
             
         Response_function1 = Response_function1.isel(time=slice(10*fac - 1, 10*fac-1 +
                                                                 int(fac*year_int)))
-        Response_function1 = Response_function1.isel(time=slice(None, None, -1)).drop('time')
+        Response_function1 = Response_function1.isel(time=slice(None, 
+                                                                None, -1)).drop(['time'])
     
         Response_function_gamma.append(Response_function1)
     
@@ -91,46 +82,37 @@ for gamma in gamma_rng:
 Response_function_full = xr.concat(Response_function_full, dim="gamma")
 
 # Predicttions using response functions and heat flux timseries ------
-Pred_arctic = xr.zeros_like(ds['sohefldo_arctic'])
-Pred_arctic = Pred_arctic / Pred_arctic
+Pred_AO = xr.zeros_like(ds['ao_pcs'])
+Pred_AO = Pred_AO / Pred_AO
 
-(tmp, Pred_arctic) = xr.broadcast(Response_function_full.isel(time=0), Pred_arctic)
+(tmp, Pred_AO) = xr.broadcast(Response_function_full.isel(time=0), Pred_AO)
+Pred_AO = Pred_AO.copy() # otherwise runs into "assignment destination is read-only" error
 
-Pred_arctic = Pred_arctic.copy() # otherwise runs into "assignment destination is read-only" error
-Pred_subpolar_Atl = Pred_arctic.copy()
-Pred_Atl = Pred_arctic.copy()
-    
+Pred_NAO = Pred_AO.copy()
+
 for j in range(0 + int(fac*year_int), len(ds['time'])):
                     
-    tmp1 = ds['sohefldo_arctic'].isel(time=slice(j-int(fac*year_int), j))
-    Pred_arctic[:,:,j] = (tmp1 * Response_function_full).sum('time')
+    tmp1 = ds['ao_pcs'].isel(time=slice(j-int(fac*year_int), j))
+    Pred_AO[:,:,:,j] = (tmp1 * Response_function_full).sum('time')
     
-    tmp1 = ds['sohefldo_subpolar_NAtl'].isel(time=slice(j-int(fac*year_int), j))
-    Pred_subpolar_Atl[:,:,j] = (tmp1 * Response_function_full).sum('time')
-
-    tmp1 = ds['sohefldo_NAtl'].isel(time=slice(j-int(fac*year_int), j))
-    Pred_Atl[:,:,j] = (tmp1 * Response_function_full).sum('time')
+    tmp1 = ds['nao_pcs'].isel(time=slice(j-int(fac*year_int), j))
+    Pred_NAO[:,:,:,j] = (tmp1 * Response_function_full).sum('time')
 
 print("Impulse response calculations completed")
 
-# ------ Save Data -----------------
 ds_save = ds.copy()
 
-ds_save['Pred_arctic'] = Pred_arctic
-ds_save['Pred_arctic'].attrs['long_name'] = ("Reconstructions using heat flux timeseries in" + 
-                                             " the Arctic (60N-90N)")
-ds_save['Pred_subpolar_Atl'] = Pred_subpolar_Atl
-ds_save['Pred_subpolar_Atl'].attrs['long_name'] = ("Reconstructions using heat flux timeseries" + 
-                                                   " in the subpolar North Atlantic (45N-70N)")
-
-ds_save['Pred_Atl'] = Pred_Atl
-ds_save['Pred_Atl'].attrs['long_name'] = ("Reconstructions using heat flux timeseries" + 
-                                          " in the North Atlantic (45N-90N)")
+ds_save['Pred_AO'] = Pred_AO
+ds_save['Pred_AO'].attrs['long_name'] = ("Reconstructions using SLP EOF timeseries in" + 
+                                        " the Arctic (60N-90N)")
+ds_save['Pred_NAO'] = Pred_NAO
+ds_save['Pred_NAO'].attrs['long_name'] = ("Reconstructions using SLP EOF (20N-80N, 90W-40E)" + 
+                                          " timeseries in the subpolar North Atlantic")
 
 ds_save = ds_save.assign_coords(gamma = gamma_rng)
 ds_save = ds_save.assign_coords(beta = beta_rng)
 
-save_file_path = ppdir + "Recons_green_function/Response_heat_flux.nc" 
+save_file_path = ppdir + "Recons_green_function/Response_SLP_EOF.nc" 
 
 ds_save = ds_save.astype(np.float32).compute()
 ds_save.to_netcdf(save_file_path)
