@@ -42,11 +42,9 @@ beta_rng = np.arange(0.0, 10.1, 0.5)
 # read data
 ds = xr.open_dataset(ppdir + "timeseries/Index_AO_NAO.nc")
 
-# remove climatology and linear trends
+# remove linear trends
 var_list = ['ao_pcs', 'nao_pcs']
 for var in var_list:
-    ds_clim = ds[var].groupby('time.month').mean('time')
-    ds[var] = ds[var].groupby('time.month') - ds_clim
     ds[var] = detrend(ds[var], ['time'])
 ds = ds.drop('month')
 
