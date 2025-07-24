@@ -40,16 +40,29 @@ year_int = 20. # length of response function in years
 gamma_rng = np.arange(0.5, 20.1, 0.5)
 beta_rng = np.arange(0.0, 10.1, 0.5)
 
+depth_rng = [50., 100., 200., 500.]
+
 # read grid data
 
 ds = xr.open_mfdataset(ppdir + "timeseries/Ocean_temp*nc", chunks=None)
 ds = ds.drop(['cell_area', 'nav_lat', 'nav_lon', 'vol_arctic', 'vol_subpolar_NAtl', 'vol_NAtl'])
-ds = ds.sel(z=slice(0.,500.)).sum('z').compute() # focus on upper 500 m
+#ds = ds.sel(z=slice(0.,500.)).sum('z').compute() # focus on upper 500 m
 
 # remove climatology and linear trends 
 var_list = ['votemper_subpolar_NAtl', 'votemper_arctic', 'votemper_NAtl',
             'ice_vol', 'ileadfra', 'sohefldo_subpolar_NAtl', 'sohefldo_arctic',
             'sohefldo_NAtl']
+
+for var in var_list[0:3]:
+    data = []
+    for j in range(0, len(depth_rng)):
+        tmp = ds[var].sel(z=slice(0., depth_rng[j])).sum('z')
+        data.append(tmp)
+
+    ds[var] = xr.concat(data, dim = 'depth')
+
+ds = ds.compute()
+ds = ds.assign_coords(depth = depth_rng)
 
 ds_clim = ds.groupby('time.month').mean('time')
 ds = ds.groupby('time.month') - ds_clim
@@ -58,7 +71,8 @@ for var in var_list:
     ds[var] = detrend(ds[var], ['time'])
 
 print("Data read and linear trends removal completed")
-      
+
+
 # Create impulse response functions 
 
 tim = (ds['time'].dt.year + ds['time'].dt.month / 12 + ds['time'].dt.day / 365. 
@@ -122,7 +136,6 @@ ds_save['Pred_arctic'].attrs['long_name'] = ("Reconstructions using heat flux ti
 ds_save['Pred_subpolar_Atl'] = Pred_subpolar_Atl
 ds_save['Pred_subpolar_Atl'].attrs['long_name'] = ("Reconstructions using heat flux timeseries" + 
                                                    " in the subpolar North Atlantic (45N-70N)")
-
 ds_save['Pred_Atl'] = Pred_Atl
 ds_save['Pred_Atl'].attrs['long_name'] = ("Reconstructions using heat flux timeseries" + 
                                           " in the North Atlantic (45N-90N)")
